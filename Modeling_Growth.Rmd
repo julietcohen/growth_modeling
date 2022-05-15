@@ -66,20 +66,19 @@ forest_carbon_if_else(r = 0.01, C_initial = 60, g = 2)
 # carbon = 1.52, a static value because we are not running function over time but rather at the first time step
 ```
 
-
 ```{r}
-# read in her functions to first test code on a function that we know works...?
+# read in Namoi's functions to first test code on a function that we know works
 # changed each P to a C for carbon
 
-dexppop <- function (time, C, r) {
-    dexpop = r * C
-    return(list(dexpop)) # the ODE solver needs the output to be a list
-}
-
-dexppopK <- function (time, C, parms) {
-  dexpop = parms$r * C * (1 - C/parms$K)
-  return(list(dexpop)) # the ODE solver needs the output to be a list
-}
+# dexppop <- function (time, C, r) {
+#     dexpop = r * C
+#     return(list(dexpop)) # the ODE solver needs the output to be a list
+# }
+# 
+# dexppopK <- function (time, C, parms) {
+#   dexpop = parms$r * C * (1 - C/parms$K)
+#   return(list(dexpop)) # the ODE solver needs the output to be a list
+# }
 ```
 
 2. Run the model for 300 years (using the ODE solver) starting with an initial forest size of 10 kgC, and using the following parameters:
@@ -120,47 +119,83 @@ colnames(C_over_time) = c("Year", "Carbon")
 head(C_over_time)
 ```
 
+```{r}
+# code refenced from the lecture slides here: https://naomitague.github.io/ESM232_course/lectures/lecture10_moredynamic.html#(7)
+# define the initial forest size in units of kilograms of carbon
+C_initial = 10
+
+# define time range in years
+simtimes = seq(from = 1, to = 300, by = 5)
+
+# for now the parameter(s) can be static values, but when we feed these paramaters into sobol sensitivity analysis later we will need to make them ranges with means and standard deviation
+r = 0.01
+K = 250
+g = 2
+static_parms <- c(r, K, g) # naomi did this in her code, but she only had c(r) (https://naomitague.github.io/ESM232_course/lectures/lecture10_moredynamic.html#(7)) and here I added K and g to the vector of values, but the output is the same either way, I am not sure how we should change this variable for our purposes
+# run the ODE solver
+C_over_time = ode(y = C_initial, 
+            times = simtimes, 
+            func = forest_carbon_if_else,
+            parms = static_parms)
+
+# rename columns for clarity: change "time" to "Year" and "1" to "Carbon"
+colnames(C_over_time) = c("Year", "Carbon")
+
+head(C_over_time)
+
+ggplot(as.data.frame(C_over_time), aes(Year, Carbon)) + 
+  geom_point() + 
+  labs(y = "Carbon",
+       x = "Years")
+# this graph makes no sense ecologically, something must be wrong in the function itself 
+```
 
 
-3. Run a Sobol sensitivity analysis that explores how the estimated maximum and mean forest size (e.g maximum and mean values of C over the 300 years) varies with the pre canopy closure growth rate (r) and post-canopy closure growth rate (g) and canopy closure threshold and carrying capacity(K)
+3. Run a Sobol sensitivity analysis that explores how the estimated **maximum and mean forest size** (e.g maximum and mean values of `C` over the 300 years) varies with the pre canopy closure growth rate (`r`) and post-canopy closure growth rate (`g`) and canopy closure threshold and carrying capacity (`K`)
 
 Assume that parameters are all normally distributed with means as given above and standard deviation of 10% of mean value
 
 Graph the results of the sensitivity analysis as a box plot of maximum forest size and a plot of the two Sobol indices (S and T). (25% - correct implementation of Sobol and graph We also look for good graphing style -labels etc)
 
 ```{r}
-# want to learn about sensitivity to pre-canopy growth rate (r), post-canopy closure growth rate (g), and canopy closure threshold and carrying capacity(K)
+# want to learn about sensitivity to pre-canopy growth rate (r), post-canopy closure growth rate (g), and canopy closure threshold and carrying capacity (K)
 
 ## CREATE FIRST SET OF SAMPLES
-# define the number of parameters, i dont know what this does in the rnorm() function
-np = 300
+# define the number of parameters (called "observations" in the documentation for the rnorm() function)
+np = 300 # i THINK this should be 300 because that is the number of time steps we were given, not sure if it would run otherwise 
 # define K's standard deviation, which is 10% of the mean of 250
 K_sd <-  0.1*250
-# define K, using the default mean provided, the calculated standard deviation, and the number of time steps 
+# define K, using the default mean provided, the calculated standard deviation, and the number of observations  
 K <-  rnorm(mean = 250, sd = K_sd, n = np)
 # define r's standard deviation, which is 10% of the mean of 0.01
 r_sd <- 0.1*0.01
-# define r, using the default mean provided, the calculated standard deviation, and the number of time steps 
+# define r, pre-canopy closure growth rate, using the default mean provided, the calculated standard deviation, and the number of observations  
 r = rnorm(mean = 0.01, sd = r_sd, n = np)
-X1 = cbind.data.frame(r = r, K = K)
+# define g's standard deviation, which is 10% of the mean of 2
+g_sd <- 0.1*2
+# define g, the post-canopy closure growth rate, using the default mean provided, the calculated standard deviation, and the number of observations
+g = rnorm(mean = 2, sd = g_sd, n = np)
+# bind all 3 parameters together
+X1 = cbind.data.frame(r = r, K = K, g = g)
 
 ## CREATE SECOND SET OF SAMPLES (for sensitivity analysis)
 # these are the same arguments that defined K and r for the first set sample set
 K <-  rnorm(mean = 250, sd = K_sd, n = np)
 r = rnorm(mean = 0.01, sd = r_sd, n = np)
-X2 = cbind.data.frame(r = r, K = K)
+g = rnorm(mean = 2, sd = g_sd, n = np)
+X2 = cbind.data.frame(r = r, K = K, g = g)
 
 # run sensitivity analysis
-# here I chose 600 for the number of bootstrap replicates because in Naomi's example, she used np = 100 and nboot = 300, so I figure that nboot needs to be higher than np
+# here I chose 600 for the number of bootstrap replicates because in Naomi's example, she used np = 100 and nboot = 300, so I figure that nboot needs to be higher than np which we have as 300
 sens_C = sobolSalt(model = NULL, X1, X2, nboot = 600)
 
 # lets add names to the columns
-colnames(sens_C$X) = c("r","K")
+colnames(sens_C$X) = c("r","K", "g")
 
 # check that the columns and names look correct
 head(sens_C$X)
 
-# note: `simtimes` and `C_initial` objects were already defined earlier in this Rmd
+# note: `simtimes` and `C_initial` objects were already defined earlier in this Rmd around line 125 when we tested the `forest_carbon_if_else()` function
 
 p_wrapper = function(r, K, C_initial, simtimes, func, metrics_func) {
     parms = list(r = r, K = K)
@@ -171,18 +206,21 @@ p_wrapper = function(r, K, C_initial, simtimes, func, metrics_func) {
   return(metrics)
 }
 
-# this code does not run until we get the function compute_pop_metrics
-# i am not sure if we what function we will use to replace comput_pop_metrics for this assignment
+# this code does not run until we get the function to compute metrics...here naomi had compute_pop_metrics for the metrics_func argument but I could not find that anywhere so I am not sure what to put there for our purposes
 allresults = as.data.frame(sens_C$X) %>%
   pmap(p_wrapper,
        C_initial = C_initial,
        simtimes = simtimes,
        func = dexppopK,
        metrics_func = compute_pop_metrics)
+```
 
+## THIS IS WHERE JULIET STOPPED CHANGING NAOMI'S CODE TO ACCOMODATE OUR ASSIGNMENT
+
+```{r}
 # extract out results from pmap into a data frame
 allres = allresults %>% 
-  map_dfr(`[`,c("maxpop", "dyear"))
+  map_dfr(`[`,c("max_carbon", "dyear"))
 
 # create boxplots
 tmp = allres %>% 
