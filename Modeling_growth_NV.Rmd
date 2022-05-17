@@ -156,31 +156,12 @@ head(sens_C$X)
 ```{r Metrics & Results}
 ## Which metrics do we care about?
 # Max and mean forest C 
-# Extract these values from C_over_time
-
-# compute_metrics <- function(result){
-#   max_c <- result %>% 
-#   as.data.frame() %>% 
-#   select("Carbon") %>% 
-#   max()
-# 
-#   mean_c <- result %>% 
-#   as.data.frame() %>% 
-#   select("Carbon") %>% 
-#   mean()
-#   
-#   return(list(max_c = max_c,
-#               mean_c = mean_c))
-# 
-# }
 
 compute_metrics <- function(result){
   max_c <- max(result$C) 
   mean_c <- mean(result$C)
   return(list(max_c = max_c, mean_c = mean_c))
 }
-
-#compute_metrics(sens_C) # i think this should work? but we need to run the ODE first if so
 
 # note: `simtimes` and `C` objects were already defined earlier in this Rmd when we tested the `C_growth()` function
 
@@ -210,7 +191,17 @@ tmp = allres %>%
   gather(key="metric", value="value")
 
 ggplot(tmp, aes(metric, value, col = metric)) +
-  geom_boxplot()
+  geom_boxplot() +
+  theme_light() +
+  ggtitle("Metrics for Forest Growth: maximum and mean growth") +
+   xlab("Metric") + 
+   ylab("Carbon") +
+   theme(axis.title.x = element_text(color = "black", size = 11),
+         axis.text.x = element_text(face = "bold", color = "black", size = 10),
+         axis.title.y = element_text(color = "black", size = 11),
+         axis.text.y = element_text(face = "bold", color = "black", size = 10),
+         plot.title = element_text(color="black", size = 15, face = "bold"),
+         panel.border = element_rect(colour = "black", fill = NA, size = 2))
 ```
 
 
@@ -220,14 +211,49 @@ sens_C_maxpop = sensitivity::tell(sens_C, allres$max_c)
 
 # first-order indices (main effect without co-variance)
 sens_C_maxpop$S
+# this data represents main effect without covariance
+```
+```{r}
+rownames(sens_C_maxpop$S) = c("r","g", "K")
+sens_C_maxpop$S
+```
+## Graph the main effect without covariance 
+
+```{r}
+data <- data.frame(S = sens_C_maxpop$S$original, T = sens_C_maxpop$T$original, parameter = c("r", "g", "K")) %>% 
+  pivot_longer(cols = c(S, T))
+
+class(sens_C_maxpop$S)
+colnames(sens_C_maxpop$S)
+rownames(sens_C_maxpop$S)
+sens_C_maxpop$S$original
+variables <- rownames(sens_C_maxpop$S)
+
+ggplot(data, aes(x = name, y = value, color = parameter)) +
+  geom_point() +
+  theme_light() +
+  ggtitle("Metrics for Forest Growth: maximum and mean growth") +
+   xlab("Metric") + 
+   ylab("Carbon") +
+   theme(axis.title.x = element_text(color = "black", size = 11),
+         axis.text.x = element_text(face = "bold", color = "black", size = 10),
+         axis.title.y = element_text(color = "black", size = 11),
+         axis.text.y = element_text(face = "bold", color = "black", size = 10),
+         plot.title = element_text(color="black", size = 15, face = "bold"),
+         panel.border = element_rect(colour = "black", fill = NA, size = 2))
 ```
 
 
 ```{r}
 # total sensitivity index -note that this partitions the output variance - so values sum to 1
 sens_C_maxpop$T
+# this data represents the total sensitivity index
 ```
 
+```{r}
+rownames(sens_C_maxpop$T) = c("r","g", "K")
+sens_C_maxpop$T
+```
 
 
 ```{r}
