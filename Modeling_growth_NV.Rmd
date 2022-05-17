@@ -64,14 +64,14 @@ r = 0.01 #exponential rate of growth
 K = 250 #carrying capacity
 g = 2 #linear rate of growth
 C = 10 #starting carbon point
-static_parms <- c(r, K, g) # naomi did this in her code (https://naomitague.github.io/ESM232_course/lectures/lecture10_moredynamic.html#(7)), I am not sure how we should change this variable for our purposes
+parms <- c(r, K, g) # naomi did this in her code (https://naomitague.github.io/ESM232_course/lectures/lecture10_moredynamic.html#(7)), I am not sure how we should change this variable for our purposes
 
 # **How does C know how to build on itself?**
 # run the ODE solver
-C_over_time = ode(y = 10, 
+C_over_time = ode(y = 10, #iniital condition, then the next time stamp, ODE uses the initial condition and the change in C
             times = simtimes, 
             func = C_growth,
-            parms = static_parms)
+            parms = parms)
 
 # rename columns for clarity: change "time" to "Year" and "1" to "Carbon"
 colnames(C_over_time) = c("Year", "Carbon")
@@ -133,6 +133,7 @@ K <-  rnorm(mean = 250, sd = K_sd, n = np)
 r <-  rnorm(mean = 0.01, sd = r_sd, n = np)
 g <-  rnorm(mean = 2, sd = g_sd, n = np)
 X2 <- cbind.data.frame(r = r, K = K, g = g)
+
 ```
 
 
@@ -174,10 +175,12 @@ compute_metrics <- function(result){
   return(list(max_c = max_c, mean_c = mean_c))
 }
 
+#compute_metrics(sens_C) # i think this should work? but we need to run the ODE first if so
+
 # note: `simtimes` and `C` objects were already defined earlier in this Rmd when we tested the `C_growth()` function
 
 c_wrapper = function(r, g, K, C, simtimes, func) {
-    parms = list(r = r, C = C, g = g, K = K, canopy_thresh = rep(50, length(r)))
+    parms = list(r = r, C = C, g = g, K = K, canopy_thresh = rep(50, length(r))) # confused where this length came from?
     result = ode(y = C, times = simtimes, func = C_growth, parms = as.data.frame(parms)) 
     result <- as.data.frame(result)
     colnames(result) <- c('time', 'C')
@@ -221,7 +224,30 @@ sens_C_maxpop$T
 ```
 
 
+
+```{r}
+# compute sobol indicies (separately for the two different outputs)
+sens_C_meanpop = sensitivity::tell(sens_C, allres$mean_c)
+
+# first-order indices (main effect without co-variance)
+sens_C_meanpop$S
+
+# total sensitivity index -note that this partitions the output variance - so values sum to 1
+sens_C_meanpop$T
+
+#I think the order of the results is r, g, K? not totally sure if this is accurate
+```
+
+```
+
 In 2-3 sentences, discuss what the results of your simulation might mean for climate change impacts on forest growth (e.g think about what parameters climate change might influence ). (25% - we look for reasonable discussion that uses the results from your analysis and give extra points for discussions that offer particularly creative or insightful commentary)
 
 Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model (Final 10% for well-organized, clearly documented R markdown)
+
+
+
+Assuming that X1 = r, when looking at the first order variance, both the mean population and the max population are highly correlated with the r (X1) variable. Again when we look at the total sensitivty this trend holds, the r (x1) the early exponential growth rate, has the highest correlation with the max and mean populations.
+
+
+
 
