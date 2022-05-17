@@ -10,7 +10,7 @@
 
 # Function
 
-C_growth <- function(r = 0.01, C = 10, g = 2, K = 250, canopy_thresh = 50) {
+C_growth <- function(parms, C, time, canopy_thresh =50) { #need time as a parameter because we are running the function specifically in an ODE solver
   if (C < canopy_thresh){
     c_list = r*C
   }
@@ -19,3 +19,4 @@ C_growth <- function(r = 0.01, C = 10, g = 2, K = 250, canopy_thresh = 50) {
   }
   return(list(c_list)) # the ODE solver needs the output to be a list
 }
+#do we need a time parameter? since we are putting this into an ODE?
