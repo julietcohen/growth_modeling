@@ -79,7 +79,18 @@ ggplot(as.data.frame(C_over_time), aes(Year, Carbon)) +
   geom_point() + 
   labs(y = "Carbon",
        x = "Years") +
-  geom_line(aes(Year, Carbon), color = 'green')
+  geom_line(aes(Year, Carbon), color = 'green') +
+  theme_light() +
+  ggtitle("Forest Carbon over time") +
+   xlab("Year") + 
+   ylab("Carbon") +
+   theme(axis.title.x = element_text(color = "black", size = 11),
+         axis.text.x = element_text(face = "bold", color = "black", size = 10),
+         axis.title.y = element_text(color = "black", size = 11),
+         axis.text.y = element_text(face = "bold", color = "black", size = 10),
+         plot.title = element_text(color="black", size = 15, face = "bold"),
+         panel.border = element_rect(colour = "black", fill = NA, size = 2))
+  
 
 ```
 
@@ -232,9 +243,9 @@ sens_C_meanpop$T
 #I think the order of the results is r, g, K? not totally sure if this is accurate
 ```
 
-```
-
 In 2-3 sentences, discuss what the results of your simulation might mean for climate change impacts on forest growth (e.g think about what parameters climate change might influence ). (25% - we look for reasonable discussion that uses the results from your analysis and give extra points for discussions that offer particularly creative or insightful commentary)
+
+**Climate change might influence the parameters **
 
 Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model (Final 10% for well-organized, clearly documented R markdown)
 
