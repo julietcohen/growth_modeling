@@ -2,7 +2,7 @@
 title: 'EDS230/ESM232: Modeling Growth'
 author: "Juliet Cohen, Dani Sclafani, Nikole Vannest"
 date: '2022-05-13'
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -188,9 +188,9 @@ tmp = allres %>%
 ggplot(tmp, aes(metric, value, col = metric)) +
   geom_boxplot() +
   theme_light() +
-  ggtitle("Metrics for Forest Growth: Maximum and Mean Carbon") +
+  ggtitle("Metrics for Forest Growth: Maximum and Mean Carbon Distributions") +
    xlab("Metric") + 
-   ylab("Carbon") +
+   ylab("Carbon (kgC)") +
    theme(axis.title.x = element_text(color = "black", size = 11),
          axis.text.x = element_text(face = "bold", color = "black", size = 10),
          axis.title.y = element_text(color = "black", size = 11),
@@ -233,9 +233,9 @@ variables <- rownames(sens_C_maxpop$S)
 ggplot(data, aes(x = name, color = parameter)) +
   geom_point(aes(y = value, shape = parameter), size = 3) +
   theme_light() +
-  ggtitle("Maximum Forest Growth: Without Covariance and Total Effect") +
+  ggtitle("Maximum Forest Growth: Without Covariance (S) and Total Effect (T)") +
    xlab("Metric") + 
-   ylab("Carbon") +
+   ylab("Sobol Sensitivity Analysis Value") +
    theme(axis.title.x = element_text(color = "black", size = 11),
          axis.text.x = element_text(face = "bold", color = "black", size = 10),
          axis.title.y = element_text(color = "black", size = 11),
@@ -252,6 +252,8 @@ In 2-3 sentences, discuss what the results of your simulation might mean for cli
 **Climate change might influence the parameters **
 
 Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model (Final 10% for well-organized, clearly documented R markdown)
+
+The results of our simulation show that the most sensitive parameter for 
 
 When thinking about the effects of climate change based on historical evidence and future models, we know that temperature is going to rise, and precipitation will be more variable depending on the region. Tree rate of growth depends on temperature and precipitation, especially with establishment of new trees. We can speculate that since the rate of growth (both in establishment of new trees and after reaching the canopy threshold) were found to be the most sensitive parameters in our model, that they will be the most effected under climate change.
 
