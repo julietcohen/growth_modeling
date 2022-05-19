@@ -31,6 +31,16 @@ Consider the following model of forest growth (where forest size in measured in 
 # Load in function
 source(here("R", "C_growth.R"))
 
+## C_growth <- function(time, C, parms) { #need time as a parameter because we are running the function specifically in an ODE solver
+##   if (C < parms$canopy_thresh){
+##     c_list = parms$r*C
+##   }
+##   else {
+##     c_list = parms$g * (1 - C/parms$K)
+##   }
+##   return(list(c_list)) # the ODE solver needs the output to be a list
+## }
+
 # Keep samples the same
 set.seed(123)
 ```
@@ -55,11 +65,12 @@ simtimes = seq(from = 1, to = 300, by = 1)
 r = 0.01 #exponential rate of growth
 K = 250 #carrying capacity
 g = 2 #linear rate of growth
+canopy_thresh = 50
 C = 10 #starting carbon point
-parms <- list(r = r, K = K, g = g) 
+parms <- list(r = r, K = K, g = g, canopy_thresh = canopy_thresh) 
 
 # run the ODE solver
-C_over_time = ode(y = 10, #iniital condition, then the next time stamp, ODE uses the initial condition and the change in C
+C_over_time = ode(y = C, #initial condition, then the next time stamp, ODE uses the initial condition and the change in C
             times = simtimes, 
             func = C_growth,
             parms = parms)
@@ -81,7 +92,7 @@ ggplot(as.data.frame(C_over_time), aes(Year, Carbon)) +
   theme_light() +
   ggtitle("Forest Growth (Carbon) Over 300 years") +
    xlab("Year") + 
-   ylab("Carbon") +
+   ylab("Carbon (kgC") +
    theme(axis.title.x = element_text(color = "black", size = 11),
          axis.text.x = element_text(face = "bold", color = "black", size = 10),
          axis.title.y = element_text(color = "black", size = 11),
@@ -125,21 +136,28 @@ g_sd <- 0.1*2
 # define g, the post-canopy closure growth rate, using the default mean provided, the calculated standard deviation, and the number of observations
 g = rnorm(mean = 2, sd = g_sd, n = np)
 
+# define canopy_thresh's standard deviation, which is 10% of the mean of 50
+canopy_thresh_sd = 0.1*50
+
+# define canopy_thresh, the size of the forest at which growth rates change from exponential to linear (units are kg carbon)
+canopy_thresh = rnorm(mean = 50, sd = canopy_thresh_sd, n = np)
+
 # bind all 3 parameters together
-X1 = cbind.data.frame(r = r, K = K, g = g)
+X1 = cbind.data.frame(r = r, K = K, g = g, canopy_thresh = canopy_thresh)
 
 ## CREATE SECOND SET OF SAMPLES (for sensitivity analysis)
 # these are the same arguments that defined K and r for the first set sample set
 K <-  rnorm(mean = 250, sd = K_sd, n = np)
 r <-  rnorm(mean = 0.01, sd = r_sd, n = np)
 g <-  rnorm(mean = 2, sd = g_sd, n = np)
-X2 <- cbind.data.frame(r = r, K = K, g = g)
+canopy_thresh <- rnorm(mean = 50, sd = canopy_thresh_sd, n = np)
+X2 <- cbind.data.frame(r = r, K = K, g = g, canopy_thresh = canopy_thresh)
 
 # Run sensitivity analysis
 sens_C = sobolSalt(model = NULL, X1, X2, nboot = 300)
 
 # lets add names to the columns
-colnames(sens_C$X) = c("r","K", "g")
+colnames(sens_C$X) = c("r", "K", "g", "canopy_thresh")
 
 # check that the columns and names look correct
 head(sens_C$X)
@@ -159,8 +177,11 @@ compute_metrics <- function(result){
 
 # note: `simtimes` and `C` objects were already defined earlier in this Rmd when we tested the `C_growth()` function
 
-c_wrapper = function(r, g, K, C, simtimes, func) {
-    parms = list(r = r, C = C, g = g, K = K) 
+c_wrapper = function(r, g, K, canopy_thresh, C, simtimes, func) {
+    parms = list(r = r, 
+                 g = g, 
+                 K = K, 
+                 canopy_thresh = canopy_thresh) 
     result = ode(y = C, times = simtimes, func = C_growth, parms = as.data.frame(parms)) 
     result <- as.data.frame(result)
     colnames(result) <- c('time', 'C')
@@ -188,7 +209,7 @@ tmp = allres %>%
 ggplot(tmp, aes(metric, value, col = metric)) +
   geom_boxplot() +
   theme_light() +
-  ggtitle("Metrics for Forest Growth: Maximum and Mean Carbon Distributions") +
+  ggtitle("Metrics for Forest Growth:\nMaximum and Mean Carbon Distributions") +
    xlab("Metric") + 
    ylab("Carbon (kgC)") +
    theme(axis.title.x = element_text(color = "black", size = 11),
@@ -199,14 +220,14 @@ ggplot(tmp, aes(metric, value, col = metric)) +
          panel.border = element_rect(colour = "black", fill = NA, size = 2))
 ```
 
-### Two Sobol Indicies: S and T
+### Sobol Indicies
 
 ```{r}
-## compute sobol indicies (Only need to show for max_c)
+## compute sobol indicies for max_c
 sens_C_maxpop = sensitivity::tell(sens_C, allres$max_c)
 
 # Add row names
-rownames(sens_C_maxpop$S) = c("r","g", "K")
+rownames(sens_C_maxpop$S) = c("r", "g", "K", "canopy_thresh")
 
 # first-order indices (main effect without co-variance)
 sens_C_maxpop$S
@@ -215,17 +236,39 @@ sens_C_maxpop$S
 ## total sensitivity index -note that this partitions the output variance - so values sum to 1
 
 # Add row names
-rownames(sens_C_maxpop$T) = c("r","g", "K")
+rownames(sens_C_maxpop$T) = c("r", "g", "K", "canopy_thresh")
 
 sens_C_maxpop$T
 # this data represents the total sensitivity index
 
 ```
 
+```{r}
+## compute sobol indicies for mean_c
+sens_C_meanpop = sensitivity::tell(sens_C, allres$mean_c)
+
+# Add row names
+rownames(sens_C_meanpop$S) = c("r", "g", "K", "canopy_thresh")
+
+# first-order indices (main effect without co-variance)
+sens_C_meanpop$S
+# this data represents main effect without covariance
+
+## total sensitivity index -note that this partitions the output variance - so values sum to 1
+
+# Add row names
+rownames(sens_C_meanpop$T) = c("r", "g", "K", "canopy_thresh")
+
+sens_C_meanpop$T
+# this data represents the total sensitivity index
+```
+
+
 ### Graph the Results of the Sobol Sensitivity Analysis
 
 ```{r}
-data <- data.frame(S = sens_C_maxpop$S$original, T = sens_C_maxpop$T$original, parameter = c("r", "g", "K")) %>% 
+# max_c
+data <- data.frame(S = sens_C_maxpop$S$original, T = sens_C_maxpop$T$original, parameter = c("r", "g", "K", "canopy_thresh")) %>% 
   pivot_longer(cols = c(S, T))
 
 variables <- rownames(sens_C_maxpop$S)
@@ -233,7 +276,28 @@ variables <- rownames(sens_C_maxpop$S)
 ggplot(data, aes(x = name, color = parameter)) +
   geom_point(aes(y = value, shape = parameter), size = 3) +
   theme_light() +
-  ggtitle("Maximum Forest Growth: Without Covariance (S) and Total Effect (T)") +
+  ggtitle("Maximum Forest Growth:\nWithout Covariance (S) and Total Effect (T)") +
+   xlab("Metric") + 
+   ylab("Sobol Sensitivity Analysis Value") +
+   theme(axis.title.x = element_text(color = "black", size = 11),
+         axis.text.x = element_text(face = "bold", color = "black", size = 10),
+         axis.title.y = element_text(color = "black", size = 11),
+         axis.text.y = element_text(face = "bold", color = "black", size = 10),
+         plot.title = element_text(color="black", size = 15, face = "bold"),
+         panel.border = element_rect(colour = "black", fill = NA, size = 2))
+```
+
+```{r}
+# mean_c
+data <- data.frame(S = sens_C_meanpop$S$original, T = sens_C_meanpop$T$original, parameter = c("r", "g", "K", "canopy_thresh")) %>% 
+  pivot_longer(cols = c(S, T))
+
+variables <- rownames(sens_C_meanpop$S)
+
+ggplot(data, aes(x = name, color = parameter)) +
+  geom_point(aes(y = value, shape = parameter), size = 3) +
+  theme_light() +
+  ggtitle("Mean Forest Growth:\nWithout Covariance (S) and Total Effect (T)") +
    xlab("Metric") + 
    ylab("Sobol Sensitivity Analysis Value") +
    theme(axis.title.x = element_text(color = "black", size = 11),
@@ -253,9 +317,7 @@ In 2-3 sentences, discuss what the results of your simulation might mean for cli
 
 Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model (Final 10% for well-organized, clearly documented R markdown)
 
-The results of our simulation show that the most sensitive parameter for 
-
-When thinking about the effects of climate change based on historical evidence and future models, we know that temperature is going to rise, and precipitation will be more variable depending on the region. Tree rate of growth depends on temperature and precipitation, especially with establishment of new trees. We can speculate that since the rate of growth (both in establishment of new trees and after reaching the canopy threshold) were found to be the most sensitive parameters in our model, that they will be the most effected under climate change.
+**The results of our simulation show that the most sensitive parameter for maximum forest growth is linear growth rate, and the most sensitive parameter for mean forest growth is exponential growth rate. With climate change, we expect higher temperatures globally, inconsistent precipitation (patterns of drought, massive rain events, or alternation between the two depending on the region), and an influx of carbon in the atmosphere. Since temperature and precipitation both directly influence tree growth, which were the most sensitive parameters, we might see large changes in forest size in less time than has been recorded historically, but whether forest size increases or newer forest size decreases might depend on the environmental preferences of the specific tree species.**
 
 
 
